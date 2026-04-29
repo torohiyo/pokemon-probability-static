@@ -47,3 +47,9 @@ p { color: #94a3b8; line-height: 1.6; }
 .timeline-row p { font-size: 12px; line-height: 1.45; }
 footer { padding: 8px 4px; font-size: 12px; }
 @media (min-width: 640px) { .grid.three { grid-template-columns: repeat(3, 1fr); } .grid.four { grid-template-columns: repeat(4, 1fr); } .condition-tabs { grid-template-columns: repeat(4, 1fr); } }
+.field select option { background: #020617; color: #f8fafc; }
+.mode-tabs-four { grid-template-columns: repeat(2, 1fr); }
+.effect-box { display: grid; gap: 12px; padding: 12px; border-radius: 18px; background: rgba(8, 145, 178, .1); border: 1px solid rgba(103, 232, 249, .18); margin-bottom: 12px; }
+.effect-box p { font-size: 12px; }
+.preset-field { margin-bottom: 12px; }
+@media (min-width: 640px) { .mode-tabs-four { grid-template-columns: repeat(4, 1fr); } }

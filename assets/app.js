@@ -1,18 +1,25 @@
 const GROUPS = ['A', 'B', 'C'];
+
+const PRESETS = {
+  custom: { label: 'カスタム', mode: 'draw', draw: 3, hand: 0 },
+  professor: { label: '博士の研究', mode: 'discard', draw: 7, hand: 0 },
+  lillieStrong: { label: 'リーリエの決心強', mode: 'shuffle', draw: 8, hand: 5 },
+  lillieWeak: { label: 'リーリエの決心弱', mode: 'shuffle', draw: 6, hand: 5 },
+  redcard: { label: 'スペシャルレッドカード', mode: 'bottom', draw: 3, hand: 5 },
+};
+
 let steps = [
   makeStep(1, { draw: 3, condition: { type: 'any', groups: ['A'], min: 1 } }),
-  makeStep(2, { draw: 2, condition: { type: 'any', groups: ['B', 'C'], min: 1 } }),
+  makeStep(2, { preset: 'lillieStrong', mode: 'shuffle', hand: 5, draw: 8, condition: { type: 'any', groups: ['B', 'C'], min: 1 } }),
 ];
 
 function makeStep(id, overrides = {}) {
   return {
     id,
-    mode: 'draw',
+    preset: 'custom',
+    mode: 'draw', // draw / discard / shuffle / bottom
     draw: 3,
-    returnCards: 0,
-    returnA: 0,
-    returnB: 0,
-    returnC: 0,
+    hand: 0,
     condition: { type: 'any', groups: ['A'], min: 1 },
     ...overrides,
   };
@@ -20,15 +27,30 @@ function makeStep(id, overrides = {}) {
 
 function num(id, min = 0, max = 999) {
   const el = document.getElementById(id);
-  const n = Number(el.value);
-  const fixed = Number.isFinite(n) ? Math.max(min, Math.min(max, Math.floor(n))) : min;
-  el.value = fixed;
-  return fixed;
+  const raw = String(el.value).trim();
+  if (raw === '') return min;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, Math.floor(n))) : min;
 }
 
 function safeNum(value, min = 0, max = 999) {
-  const n = Number(value);
+  const raw = String(value).trim();
+  if (raw === '') return min;
+  const n = Number(raw);
   return Number.isFinite(n) ? Math.max(min, Math.min(max, Math.floor(n))) : min;
+}
+
+function normalizeNumberInput(input) {
+  const raw = String(input.value).trim();
+  if (raw === '') return;
+  const min = Number(input.min || 0);
+  const max = Number(input.max || 999);
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    input.value = '';
+    return;
+  }
+  input.value = Math.max(min, Math.min(max, Math.floor(n)));
 }
 
 function formatPct(p) {
@@ -97,20 +119,31 @@ function matchesCondition(drawn, condition) {
   return true;
 }
 
-function applyShuffleReturn(state, step) {
-  const next = {
-    deck: state.deck + safeNum(step.returnCards, 0, 60),
-    A: state.A + safeNum(step.returnA, 0, 60),
-    B: state.B + safeNum(step.returnB, 0, 60),
-    C: state.C + safeNum(step.returnC, 0, 60),
-  };
-  return validState(next) ? next : state;
+function prepareStateForStep(state, step) {
+  const hand = safeNum(step.hand, 0, 60);
+  if (step.mode === 'shuffle') {
+    // 手札を山札に混ぜる。対象枚数は「混ぜた後の山札内に存在する枚数」として扱う。
+    return { ...state, deck: state.deck + hand };
+  }
+  // discard: 手札はトラッシュしてから引くので山札は増えない。
+  // bottom: 手札は山札下に戻すため、このステップのドロー対象にはならない。
+  return state;
 }
 
-function addReturnedCards(dist, step) {
+function finishStateAfterStep(nextState, step) {
+  const hand = safeNum(step.hand, 0, 60);
+  if (step.mode === 'bottom') {
+    // 下に戻したカードはこのドローでは引けないが、ドロー後の残山札には加わる。
+    return { ...nextState, deck: nextState.deck + hand };
+  }
+  return nextState;
+}
+
+function prepareDist(dist, step) {
   const next = new Map();
   for (const item of dist.values()) {
-    const state = applyShuffleReturn(item.state, step);
+    const state = prepareStateForStep(item.state, step);
+    if (!validState(state)) continue;
     const key = stateKey(state);
     const current = next.get(key);
     next.set(key, { state, prob: (current?.prob || 0) + item.prob });
@@ -119,7 +152,7 @@ function addReturnedCards(dist, step) {
 }
 
 function applyStep(dist, step) {
-  const before = step.mode === 'shuffle' ? addReturnedCards(dist, step) : dist;
+  const before = prepareDist(dist, step);
   const weighted = new Map();
   let pass = 0;
   let all = 0;
@@ -129,9 +162,10 @@ function applyStep(dist, step) {
       all += p;
       if (!matchesCondition(outcome.drawn, step.condition)) continue;
       pass += p;
-      const key = stateKey(outcome.nextState);
+      const finalState = finishStateAfterStep(outcome.nextState, step);
+      const key = stateKey(finalState);
       const current = weighted.get(key);
-      weighted.set(key, { state: outcome.nextState, prob: (current?.prob || 0) + p });
+      weighted.set(key, { state: finalState, prob: (current?.prob || 0) + p });
     }
   }
   return { probability: all > 0 ? pass / all : 0, next: normalizeDist(weighted) };
@@ -155,6 +189,24 @@ function getInitial() {
   };
 }
 
+function modeLabel(mode) {
+  return {
+    draw: '縦引き',
+    discard: '手札をトラッシュして引く',
+    shuffle: '手札を山札に混ぜて引く',
+    bottom: '手札を山札の下に戻して引く',
+  }[mode] || '縦引き';
+}
+
+function modeHelp(mode) {
+  return {
+    draw: '通常の縦引きです。現在の山札からそのまま引きます。',
+    discard: '博士の研究など。手札はトラッシュされるため、山札枚数は増えません。',
+    shuffle: 'リーリエの決心など。手札を山札に戻して混ぜた後に引きます。山札枚数は「現在の山札＋手札枚数」になります。',
+    bottom: 'スペシャルレッドカードなど。手札を山札の下に戻します。このステップで引くカードは元の山札トップ側から引く扱いです。',
+  }[mode] || '';
+}
+
 function conditionLabel(condition) {
   if (condition.type === 'none') return '条件なし';
   const joined = condition.groups.join('/');
@@ -171,23 +223,32 @@ function renderSteps() {
     el.className = 'card step-card';
     el.innerHTML = `
       <div class="step-head">
-        <div><p class="eyebrow">STEP ${index + 1}</p><h3>${step.mode === 'draw' ? '縦引き' : '混ぜ直して引く'}</h3></div>
+        <div><p class="eyebrow">STEP ${index + 1}</p><h3>${modeLabel(step.mode)}</h3></div>
         <button class="delete-button" data-action="delete" ${steps.length <= 1 ? 'disabled' : ''}>×</button>
       </div>
-      <div class="mode-tabs">
+
+      <label class="field preset-field">
+        <span>カード効果プリセット</span>
+        <select data-action="preset">
+          ${Object.entries(PRESETS).map(([key, preset]) => `<option value="${key}" ${step.preset === key ? 'selected' : ''}>${preset.label}</option>`).join('')}
+        </select>
+      </label>
+
+      <div class="mode-tabs mode-tabs-four">
         <button class="mode-button ${step.mode === 'draw' ? 'active' : ''}" data-action="mode" data-mode="draw">縦引き</button>
-        <button class="mode-button ${step.mode === 'shuffle' ? 'active' : ''}" data-action="mode" data-mode="shuffle">混ぜ直し</button>
+        <button class="mode-button ${step.mode === 'discard' ? 'active' : ''}" data-action="mode" data-mode="discard">トラッシュ</button>
+        <button class="mode-button ${step.mode === 'shuffle' ? 'active' : ''}" data-action="mode" data-mode="shuffle">混ぜる</button>
+        <button class="mode-button ${step.mode === 'bottom' ? 'active' : ''}" data-action="mode" data-mode="bottom">下に戻す</button>
       </div>
-      <div class="shuffle-box" style="display:${step.mode === 'shuffle' ? 'grid' : 'none'}">
-        <p>引く前に山札へ戻すカードを指定します。例：手札5枚を山札に戻す場合は「戻す総数=5」。戻す中に対象Aが1枚あるならA=1。</p>
-        <div class="grid four">
-          ${numberMarkup('戻す総数', 'returnCards', step.returnCards)}
-          ${numberMarkup('戻すA', 'returnA', step.returnA)}
-          ${numberMarkup('戻すB', 'returnB', step.returnB)}
-          ${numberMarkup('戻すC', 'returnC', step.returnC)}
+
+      <div class="effect-box">
+        <p>${modeHelp(step.mode)}</p>
+        <div class="grid two">
+          ${step.mode === 'draw' ? '' : numberMarkup('最初の手札枚数', 'hand', step.hand, 0, 60)}
+          ${numberMarkup('このステップで引く枚数', 'draw', step.draw, 0, 30)}
         </div>
       </div>
-      ${numberMarkup('このステップで引く枚数', 'draw', step.draw, 0, 30)}
+
       <div class="condition-card">
         <div class="condition-tabs">
           ${conditionButton(step, 'none', '条件なし')}
@@ -210,14 +271,32 @@ function renderSteps() {
         const key = input.dataset.key;
         if (key === 'min') step.condition.min = safeNum(input.value, 1, 12);
         else step[key] = safeNum(input.value, Number(input.min || 0), Number(input.max || 60));
+        step.preset = 'custom';
+        calculate();
+      });
+      input.addEventListener('blur', () => normalizeNumberInput(input));
+    });
+
+    el.querySelectorAll('select').forEach((select) => {
+      select.addEventListener('change', () => {
+        const preset = PRESETS[select.value];
+        step.preset = select.value;
+        step.mode = preset.mode;
+        step.draw = preset.draw;
+        step.hand = preset.hand;
+        renderSteps();
         calculate();
       });
     });
+
     el.querySelectorAll('button').forEach((button) => {
       button.addEventListener('click', () => {
         const action = button.dataset.action;
         if (action === 'delete') steps = steps.filter((s) => s.id !== step.id);
-        if (action === 'mode') step.mode = button.dataset.mode;
+        if (action === 'mode') {
+          step.mode = button.dataset.mode;
+          step.preset = 'custom';
+        }
         if (action === 'condition') step.condition.type = button.dataset.type;
         if (action === 'toggleGroup') {
           const g = button.dataset.group;
@@ -261,7 +340,7 @@ function calculate() {
     const result = applyStep(dist, step);
     total *= result.probability;
     const after = summarizeDist(result.next);
-    rows.push({ probability: result.probability, after, states: result.next.size });
+    rows.push({ step, probability: result.probability, after, states: result.next.size });
     dist = result.next;
     if (dist.size === 0) break;
   }
@@ -272,13 +351,18 @@ function calculate() {
       <div class="badge">${i + 1}</div>
       <div>
         <b>${formatPct(row.probability)}</b>
-        <p>このステップ単体の条件付き確率 / 平均残山札 ${row.after.deck.toFixed(2)}枚 / 状態数 ${row.states}</p>
+        <p>${modeLabel(row.step.mode)} / ${conditionLabel(row.step.condition)} / 平均残山札 ${row.after.deck.toFixed(2)}枚 / 状態数 ${row.states}</p>
       </div>
     </div>
   `).join('');
 }
 
-['deck', 'simpleDraw', 'copyA', 'copyB', 'copyC'].forEach((id) => document.getElementById(id).addEventListener('input', calculate));
+['deck', 'simpleDraw', 'copyA', 'copyB', 'copyC'].forEach((id) => {
+  const input = document.getElementById(id);
+  input.addEventListener('input', calculate);
+  input.addEventListener('blur', () => normalizeNumberInput(input));
+});
+
 document.getElementById('addStep').addEventListener('click', () => {
   steps.push(makeStep(Date.now()));
   renderSteps();
