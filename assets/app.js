@@ -1,48 +1,146 @@
-const EFFECTS = {
-  lillie_strong: {
-    label: 'リーリエの決心強', short: 'リ強', mode: 'shuffle', draw: 8, compress: 0,
+const DEFAULT_EFFECTS = [
+  {
+    key: 'lillie_strong',
+    label: 'リーリエの決心強',
+    short: 'リ強',
+    mode: 'shuffle',
+    draw: 8,
+    compress: 0,
+    description: '手札を山札に戻し8枚引く',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M1L/048448_T_RIRIENOKESSHIN.jpg',
+    builtin: true,
   },
-  lillie_weak: {
-    label: 'リーリエの決心弱', short: 'リ弱', mode: 'shuffle', draw: 6, compress: 0,
+  {
+    key: 'lillie_weak',
+    label: 'リーリエの決心弱',
+    short: 'リ弱',
+    mode: 'shuffle',
+    draw: 6,
+    compress: 0,
+    description: '手札を山札に戻し6枚引く',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M2a/048697_T_RIRIENOKESSHIN.jpg',
+    builtin: true,
   },
-  redcard: {
-    label: 'スペシャルレッドカード', short: '赤', mode: 'bottom', draw: 3, compress: 0,
+  {
+    key: 'redcard',
+    label: 'スペシャルレッドカード',
+    short: '赤',
+    mode: 'bottom',
+    draw: 3,
+    compress: 0,
+    description: '手札を山札の下に戻し3枚引く',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M4/050156_T_SUPESHIXYARUREDDOKADO.jpg',
+    builtin: true,
   },
-  unfair5: {
-    label: "アンフェアスタンプ", short: "不5", mode: "shuffle", draw: 5, compress: 0,
-    imageUrl: "https://www.pokemon-card.com/assets/images/card_images/large/MC/049349_T_ANFUEASUTANPU.jpg",
+  {
+    key: 'unfair5',
+    label: 'アンフェアスタンプ',
+    short: '不5',
+    mode: 'shuffle',
+    draw: 5,
+    compress: 0,
+    description: '手札を山札に戻し5枚引く',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/MC/049349_T_ANFUEASUTANPU.jpg',
+    builtin: true,
   },
-  unfair2: {
-    label: "アンフェアスタンプ2", short: "不2", mode: "shuffle", draw: 2, compress: 0,
-    imageUrl: "https://www.pokemon-card.com/assets/images/card_images/large/MC/049349_T_ANFUEASUTANPU.jpg",
+  {
+    key: 'unfair2',
+    label: 'アンフェアスタンプ2',
+    short: '不2',
+    mode: 'shuffle',
+    draw: 2,
+    compress: 0,
+    description: '手札を山札に戻し2枚引く',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/MC/049349_T_ANFUEASUTANPU.jpg',
+    builtin: true,
   },
-  sakateni: {
-    label: 'さかてにとる', short: '逆', mode: 'draw', draw: 3, compress: 0,
+  {
+    key: 'sakateni',
+    label: 'さかてにとる',
+    short: '逆',
+    mode: 'draw',
+    draw: 3,
+    compress: 0,
+    description: '山札を3枚引く',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/SV6a/046066_P_KICHIKIGISUEX.jpg',
+    builtin: true,
   },
-  dash: {
-    label: 'お使いダッシュ', short: '走', mode: 'draw', draw: 2, compress: 0,
+  {
+    key: 'dash',
+    label: 'お使いダッシュ',
+    short: '走',
+    mode: 'draw',
+    draw: 2,
+    compress: 0,
+    description: '山札を2枚引く',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M1S/047847_P_MGARURAEX.jpg',
+    builtin: true,
   },
-  midori: {
-    label: 'みどりのまい', short: '緑', mode: 'draw', draw: 1, compress: 0,
+  {
+    key: 'midori',
+    label: 'みどりのまい',
+    short: '緑',
+    mode: 'draw',
+    draw: 1,
+    compress: 0,
+    description: '山札を1枚引く',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/MC/048798_P_OGAPONMIDORINOMENEX.jpg',
+    builtin: true,
   },
-  compress: {
-    label: '山札圧縮', short: '圧', mode: 'compress', draw: 0, compress: 1,
+  {
+    key: 'compress',
+    label: '山札圧縮',
+    short: '圧',
+    mode: 'compress',
+    draw: 0,
+    compress: 1,
+    description: '目的カード以外をn枚減らす',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/XY/037415_T_BATORUKONPURESSAFUREADANGIA.jpg',
+    builtin: true,
   },
-};
+];
 
+const STORAGE_KEY = 'pokemon-probability-effects-v1';
+let effects = loadEffects();
 let steps = [];
 let globalCondition = 'any';
 let globalMin = 1;
 
+function loadEffects() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (saved && Array.isArray(saved.effects) && saved.effects.length > 0) {
+      const byKey = new Map([...DEFAULT_EFFECTS, ...saved.effects].map((e) => [e.key, e]));
+      const orderedKeys = Array.isArray(saved.order) ? saved.order : saved.effects.map((e) => e.key);
+      const ordered = orderedKeys.map((key) => byKey.get(key)).filter(Boolean);
+      const rest = [...byKey.values()].filter((e) => !orderedKeys.includes(e.key));
+      return [...ordered, ...rest];
+    }
+  } catch (_) {}
+  return DEFAULT_EFFECTS.map((e) => ({ ...e }));
+}
+
+function saveEffects() {
+  const custom = effects.filter((e) => !e.builtin);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    order: effects.map((e) => e.key),
+    effects: custom,
+  }));
+}
+
+function resetEffects() {
+  localStorage.removeItem(STORAGE_KEY);
+  effects = DEFAULT_EFFECTS.map((e) => ({ ...e }));
+  steps = steps.filter((s) => getEffect(s.key));
+  renderAll();
+}
+
+function getEffect(key) {
+  return effects.find((e) => e.key === key);
+}
+
 function makeStep(key) {
-  const e = EFFECTS[key];
+  const e = getEffect(key);
   return {
     id: Date.now() + Math.random(),
     key,
@@ -124,13 +222,7 @@ function enumerateDraw(state, draw) {
     const maxTake = Math.min(maxFromCat, n - used);
     for (let take = 0; take <= maxTake; take++) {
       for (const split of splitComb(u[i], sd[i], take, maxTake)) {
-        walk(
-          i + 1,
-          used + take,
-          [...unseenDrawn, split.a],
-          [...seenDrawn, take - split.a],
-          ways * split.ways
-        );
+        walk(i + 1, used + take, [...unseenDrawn, split.a], [...seenDrawn, take - split.a], ways * split.ways);
       }
     }
   }
@@ -142,12 +234,13 @@ function enumerateDraw(state, draw) {
 function applyDraw(state, draw) {
   const next = [];
   for (const out of enumerateDraw(state, draw)) {
+    const drawn = Math.min(draw, state.deck);
     const unseenDeck = state.unseenDeck.map((x, i) => x - out.unseenDrawn[i]);
     const seenDeck = state.seenDeck.map((x, i) => x - out.seenDrawn[i]);
     const seenHand = state.seenHand.map((x, i) => x + out.unseenDrawn[i] + out.seenDrawn[i]);
     const hits = state.hits.map((x, i) => x + out.unseenDrawn[i]);
     next.push({
-      state: { ...state, deck: Math.max(0, state.deck - Math.min(draw, state.deck)), hand: state.hand + Math.min(draw, state.deck), unseenDeck, seenDeck, seenHand, hits },
+      state: { ...state, deck: Math.max(0, state.deck - drawn), hand: state.hand + drawn, unseenDeck, seenDeck, seenHand, hits },
       prob: out.prob,
     });
   }
@@ -162,15 +255,6 @@ function applyStepToState(state, step) {
     return [{ state: { ...state, deck: state.deck - c }, prob: 1 }];
   }
 
-  if (step.mode === 'discard') {
-    const base = {
-      ...state,
-      hand: 0,
-      seenHand: state.seenHand.map(() => 0),
-    };
-    return applyDraw(base, step.draw).map(({ state: s, prob }) => ({ state: { ...s, hand: Math.min(step.draw, base.deck) }, prob }));
-  }
-
   if (step.mode === 'shuffle') {
     const base = {
       ...state,
@@ -183,11 +267,7 @@ function applyStepToState(state, step) {
   }
 
   if (step.mode === 'bottom') {
-    const base = {
-      ...state,
-      hand: 0,
-      seenHand: state.seenHand.map(() => 0),
-    };
+    const base = { ...state, hand: 0, seenHand: state.seenHand.map(() => 0) };
     const oldHand = state.hand;
     const oldSeenHand = state.seenHand;
     return applyDraw(base, step.draw).map(({ state: s, prob }) => ({
@@ -234,22 +314,13 @@ function calculate() {
   }
 
   let dist = new Map();
-  addDist(dist, {
-    deck,
-    hand,
-    unseenDeck: [...targets],
-    seenDeck: [0, 0, 0],
-    seenHand: [0, 0, 0],
-    hits: [0, 0, 0],
-  }, 1);
+  addDist(dist, { deck, hand, unseenDeck: [...targets], seenDeck: [0, 0, 0], seenHand: [0, 0, 0], hits: [0, 0, 0] }, 1);
 
   const rows = [];
   for (const step of steps) {
     const next = new Map();
     for (const item of dist.values()) {
-      for (const out of applyStepToState(item.state, step)) {
-        addDist(next, out.state, item.prob * out.prob);
-      }
+      for (const out of applyStepToState(item.state, step)) addDist(next, out.state, item.prob * out.prob);
     }
     dist = next;
     const mass = [...dist.values()].reduce((s, x) => s + x.prob, 0);
@@ -259,10 +330,7 @@ function calculate() {
   }
 
   let success = 0;
-  for (const item of dist.values()) {
-    if (conditionMet(item.state.hits, targets)) success += item.prob;
-  }
-
+  for (const item of dist.values()) if (conditionMet(item.state.hits, targets)) success += item.prob;
   setResult(formatPct(success), `${steps.length}手順後に「${conditionText(targets)}」を満たす確率です。`, rows);
 }
 
@@ -283,27 +351,19 @@ function setResult(percent, summary, rows) {
   document.getElementById('totalProbTop').textContent = percent;
   document.getElementById('resultSummary').textContent = summary;
   document.getElementById('resultSummaryTop').textContent = summary;
-
   const timeline = document.getElementById('timeline');
   if (!rows || rows.length === 0) { timeline.innerHTML = ''; return; }
-  timeline.innerHTML = rows.map((row, i) => `
-    <div class="timeline-row">
-      <div class="badge">${i + 1}</div>
-      <div>
-        <b>${EFFECTS[row.step.key].label}</b>
-        <p>平均終了状態：山札${row.avgDeck.toFixed(1)}枚 / 手札${row.avgHand.toFixed(1)}枚</p>
-      </div>
-    </div>
-  `).join('');
+  timeline.innerHTML = rows.map((row, i) => {
+    const e = getEffect(row.step.key) || { label: '削除済みカード' };
+    return `<div class="timeline-row"><div class="badge">${i + 1}</div><div><b>${e.label}</b><p>平均終了状態：山札${row.avgDeck.toFixed(1)}枚 / 手札${row.avgHand.toFixed(1)}枚</p></div></div>`;
+  }).join('');
 }
 
 function renderEffectRail() {
   const rail = document.getElementById('effectRail');
-  rail.innerHTML = Object.entries(EFFECTS).map(([key, effect]) => `
-    <button class="effect-card" data-effect="${key}" aria-label="${effect.label}を追加" title="${effect.label}">
-      <div class="effect-art">
-        ${effect.imageUrl ? `<img src="${effect.imageUrl}" alt="${effect.label}" loading="lazy" />` : `<span class="effect-fallback">${effect.short}</span>`}
-      </div>
+  rail.innerHTML = effects.map((effect) => `
+    <button class="effect-card" data-effect="${effect.key}" aria-label="${effect.label}を追加" title="${effect.label}">
+      <div class="effect-art">${effect.imageUrl ? `<img src="${effect.imageUrl}" alt="${effect.label}" loading="lazy" />` : `<span class="effect-fallback">${effect.short || effect.label.slice(0,1)}</span>`}</div>
     </button>
   `).join('');
   rail.querySelectorAll('[data-effect]').forEach((button) => button.addEventListener('click', () => {
@@ -320,10 +380,10 @@ function renderSteps() {
     return;
   }
 
-  wrap.innerHTML = steps.map((step, index) => {
-    const e = EFFECTS[step.key];
+  wrap.innerHTML = steps.map((step) => {
+    const e = getEffect(step.key) || { label: '削除済みカード', imageUrl: '', short: '?' };
     return `
-      <section class="step-card" title="STEP ${index + 1}: ${e.label}">
+      <section class="step-card" title="${e.label}">
         <button class="delete-button" data-delete="${step.id}" aria-label="削除">×</button>
         <div class="step-thumb">${e.imageUrl ? `<img src="${e.imageUrl}" alt="${e.label}" loading="lazy" />` : e.short}</div>
         ${step.mode === 'compress' ? `<div class="step-compress"><input data-compress="${step.id}" type="number" inputmode="numeric" min="0" max="30" value="${step.compress}" aria-label="圧縮枚数" /></div>` : ''}
@@ -349,14 +409,91 @@ function renderSteps() {
   });
 }
 
+function modeLabel(mode) {
+  if (mode === 'draw') return '縦引き';
+  if (mode === 'shuffle') return '山札に戻してシャッフル';
+  if (mode === 'bottom') return '山札の下に戻す';
+  if (mode === 'compress') return '山札圧縮';
+  return mode;
+}
+
+function renderSettingsList() {
+  const list = document.getElementById('settingsCardList');
+  list.innerHTML = effects.map((e, index) => `
+    <div class="settings-card-row" data-key="${e.key}">
+      <div class="settings-thumb">${e.imageUrl ? `<img src="${e.imageUrl}" alt="${e.label}" loading="lazy" />` : `<span>${e.short || e.label.slice(0,1)}</span>`}</div>
+      <div class="settings-card-text">
+        <b>${e.label}</b>
+        <span>${e.description || `${modeLabel(e.mode)} / ${e.draw}枚`}</span>
+      </div>
+      <div class="reorder-buttons">
+        <button data-move="up" data-key="${e.key}" ${index === 0 ? 'disabled' : ''}>↑</button>
+        <button data-move="down" data-key="${e.key}" ${index === effects.length - 1 ? 'disabled' : ''}>↓</button>
+        ${e.builtin ? '' : `<button class="danger" data-remove="${e.key}">削除</button>`}
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-move]').forEach((button) => button.addEventListener('click', () => {
+    const key = button.dataset.key;
+    const i = effects.findIndex((e) => e.key === key);
+    const delta = button.dataset.move === 'up' ? -1 : 1;
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= effects.length) return;
+    [effects[i], effects[j]] = [effects[j], effects[i]];
+    saveEffects();
+    renderAll();
+  }));
+
+  list.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => {
+    const key = button.dataset.remove;
+    effects = effects.filter((e) => e.key !== key);
+    steps = steps.filter((s) => s.key !== key);
+    saveEffects();
+    renderAll();
+  }));
+}
+
+function addCustomCard() {
+  const name = document.getElementById('newCardName').value.trim();
+  const description = document.getElementById('newCardEffect').value.trim();
+  const imageUrl = document.getElementById('newCardImage').value.trim();
+  const mode = document.getElementById('newCardMode').value;
+  const draw = num('newCardDraw', 0, 20);
+  if (!name) {
+    alert('カード名を入力してください。');
+    return;
+  }
+  if (!['draw', 'shuffle', 'bottom'].includes(mode)) {
+    alert('効果タイプを選択してください。');
+    return;
+  }
+  const key = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  effects.push({ key, label: name, short: name.slice(0, 2), mode, draw, compress: 0, imageUrl, description: description || `${modeLabel(mode)} / ${draw}枚`, builtin: false });
+  saveEffects();
+  document.getElementById('addCardForm').reset();
+  document.getElementById('newCardDraw').value = '1';
+  renderAll();
+}
+
 function updateConditionButtons() {
-  document.querySelectorAll('[data-global-condition]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.globalCondition === globalCondition);
-  });
+  document.querySelectorAll('[data-global-condition]').forEach((button) => button.classList.toggle('active', button.dataset.globalCondition === globalCondition));
   document.getElementById('minGrid').classList.toggle('hidden', globalCondition !== 'atLeast');
-  document.querySelectorAll('[data-min]').forEach((button) => {
-    button.classList.toggle('active', Number(button.dataset.min) === globalMin);
-  });
+  document.querySelectorAll('[data-min]').forEach((button) => button.classList.toggle('active', Number(button.dataset.min) === globalMin));
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('[data-tab]').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
+  document.getElementById('calcTab').classList.toggle('hidden', tab !== 'calc');
+  document.getElementById('settingsTab').classList.toggle('hidden', tab !== 'settings');
+}
+
+function renderAll() {
+  renderEffectRail();
+  renderSteps();
+  renderSettingsList();
+  updateConditionButtons();
+  calculate();
 }
 
 ['deck', 'hand', 'targetA', 'targetB', 'targetC'].forEach((id) => {
@@ -382,13 +519,10 @@ document.querySelectorAll('[data-min]').forEach((button) => {
   });
 });
 
-document.getElementById('clearSteps').addEventListener('click', () => {
-  steps = [];
-  renderSteps();
-  calculate();
-});
+document.querySelectorAll('[data-tab]').forEach((button) => button.addEventListener('click', () => switchTab(button.dataset.tab)));
+document.getElementById('clearSteps').addEventListener('click', () => { steps = []; renderSteps(); calculate(); });
+document.getElementById('addCardForm').addEventListener('submit', (e) => { e.preventDefault(); addCustomCard(); });
+document.getElementById('resetCards').addEventListener('click', resetEffects);
+document.getElementById('newCardDraw').addEventListener('blur', (e) => normalizeNumberInput(e.target));
 
-renderEffectRail();
-renderSteps();
-updateConditionButtons();
-calculate();
+renderAll();
