@@ -9,68 +9,94 @@
   </head>
   <body>
     <main class="app">
-      <header class="hero">
+      <header class="hero compact">
         <div class="logo">%</div>
         <div>
           <p class="eyebrow">Pokémon Card Probability</p>
           <h1>山札ドロー確率計算</h1>
-          <p>初期の山札・手札を入れて、カード画像をタップ。リーリエ→さかてにとる等の連続成功率を計算します。</p>
+          <p>カード画像を順番にタップして、連続プレイ後に目的カードを引ける確率を計算します。</p>
         </div>
       </header>
 
-      <section class="card result-card top-result">
+      <section class="result-card top-result">
         <div>
-          <p class="eyebrow">Total Probability</p>
-          <h2>全体成功率</h2>
+          <p class="eyebrow">Total</p>
+          <strong id="totalProbTop">—</strong>
         </div>
-        <strong id="totalProbTop">—</strong>
         <p id="resultSummaryTop">カード効果を追加してください。</p>
       </section>
 
-      <section class="card">
-        <h2>初期状態</h2>
+      <section class="card compact-card">
+        <div class="section-title-row">
+          <h2>初期状態</h2>
+          <p>最初の山札・手札</p>
+        </div>
         <div class="grid two">
-          <label class="field"><span>山札枚数</span><input id="deck" type="number" inputmode="numeric" min="1" max="60" value="47" /></label>
-          <label class="field"><span>手札枚数</span><input id="hand" type="number" inputmode="numeric" min="0" max="20" value="5" /></label>
+          <label class="field"><span>山札</span><input id="deck" type="number" inputmode="numeric" min="1" max="60" value="47" /></label>
+          <label class="field"><span>手札</span><input id="hand" type="number" inputmode="numeric" min="0" max="20" value="5" /></label>
         </div>
       </section>
 
-      <section class="card effect-picker">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Card Effects</p>
-            <h2>カード効果を追加</h2>
+      <section class="card compact-card">
+        <div class="section-title-row">
+          <h2>引きたいカード</h2>
+          <p>山札に残っている枚数</p>
+        </div>
+        <div class="target-grid">
+          <label class="field mini"><span>A</span><input id="targetA" type="number" inputmode="numeric" min="0" max="60" value="1" /></label>
+          <label class="field mini"><span>B</span><input id="targetB" type="number" inputmode="numeric" min="0" max="60" value="0" /></label>
+          <label class="field mini"><span>C</span><input id="targetC" type="number" inputmode="numeric" min="0" max="60" value="0" /></label>
+        </div>
+        <details class="details global-details">
+          <summary>詳細条件</summary>
+          <div class="details-body">
+            <div class="condition-tabs">
+              <button class="pill-button active" data-global-condition="any">どれか1種</button>
+              <button class="pill-button" data-global-condition="all">すべて</button>
+              <button class="pill-button" data-global-condition="atLeast">合計n枚以上</button>
+            </div>
+            <div id="minGrid" class="min-grid hidden">
+              <button class="min-button active" data-min="1">1</button>
+              <button class="min-button" data-min="2">2</button>
+              <button class="min-button" data-min="3">3</button>
+              <button class="min-button" data-min="4">4</button>
+              <button class="min-button" data-min="5">5</button>
+              <button class="min-button" data-min="6">6</button>
+              <button class="min-button" data-min="7">7</button>
+              <button class="min-button" data-min="8">8</button>
+            </div>
+            <p id="conditionText" class="hint"></p>
           </div>
-          <p>画像をタップすると、下のシナリオに追加されます。</p>
+        </details>
+      </section>
+
+      <section class="card compact-card effect-picker">
+        <div class="section-title-row">
+          <h2>カード効果</h2>
+          <p>左から順にタップ</p>
         </div>
         <div id="effectRail" class="effect-rail"></div>
       </section>
 
-      <section class="scenario-head">
-        <div>
-          <p class="eyebrow">Scenario</p>
-          <h2>シナリオ</h2>
+      <section class="scenario-block">
+        <div class="section-title-row scenario-title">
+          <h2>プレイ順</h2>
+          <button id="clearSteps" class="clear-button">クリア</button>
         </div>
-        <div class="scenario-actions">
-          <button id="addStep" class="add-button">＋ カスタム</button>
-          <button id="clearSteps" class="add-button subtle">クリア</button>
-        </div>
+        <div id="steps" class="steps-strip"></div>
       </section>
 
-      <div id="steps"></div>
-
-      <section class="card result-card bottom-result">
-        <div>
-          <p class="eyebrow">Result</p>
+      <section class="result-card bottom-result">
+        <div class="section-title-row">
           <h2>計算結果</h2>
+          <strong id="totalProb">—</strong>
         </div>
-        <strong id="totalProb">—</strong>
         <p id="resultSummary">カード効果を追加してください。</p>
         <div id="timeline" class="timeline"></div>
       </section>
 
       <footer>
-        <p>※ 簡易計算です。各ステップの「山に残っている枚数」は、その効果を使う時点での想定枚数として入力してください。</p>
+        <p>※ 山札圧縮は「目的カード以外を減らす」前提で計算します。手札を戻す効果は、直前までに引いた目的カードが手札にある場合も状態として反映します。</p>
       </footer>
     </main>
     <script src="./assets/app.js"></script>
