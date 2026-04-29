@@ -14,33 +14,26 @@
         <div>
           <p class="eyebrow">Pokémon Card Probability</p>
           <h1>山札ドロー確率計算</h1>
-          <p>カード画像をタップして、博士・リーリエ・さかてにとる等を順番に組み合わせて計算できます。</p>
+          <p>初期の山札・手札を入れて、カード画像をタップ。リーリエ→さかてにとる等の連続成功率を計算します。</p>
         </div>
       </header>
+
+      <section class="card result-card top-result">
+        <div>
+          <p class="eyebrow">Total Probability</p>
+          <h2>全体成功率</h2>
+        </div>
+        <strong id="totalProbTop">—</strong>
+        <p id="resultSummaryTop">カード効果を追加してください。</p>
+      </section>
 
       <section class="card">
         <h2>初期状態</h2>
         <div class="grid two">
           <label class="field"><span>山札枚数</span><input id="deck" type="number" inputmode="numeric" min="1" max="60" value="47" /></label>
-          <label class="field"><span>単発計算で引く枚数</span><input id="simpleDraw" type="number" inputmode="numeric" min="1" max="30" value="3" /></label>
-        </div>
-        <div class="grid three">
-          <label class="field"><span>対象Aの残り枚数</span><input id="copyA" type="number" inputmode="numeric" min="0" max="60" value="3" /></label>
-          <label class="field"><span>対象Bの残り枚数</span><input id="copyB" type="number" inputmode="numeric" min="0" max="60" value="2" /></label>
-          <label class="field"><span>対象Cの残り枚数</span><input id="copyC" type="number" inputmode="numeric" min="0" max="60" value="5" /></label>
+          <label class="field"><span>手札枚数</span><input id="hand" type="number" inputmode="numeric" min="0" max="20" value="5" /></label>
         </div>
       </section>
-
-      <section class="card result-card">
-        <h2>単発ドロー</h2>
-        <div class="result-grid">
-          <div><span>Aを1枚以上</span><strong id="simpleA">—</strong></div>
-          <div><span>Bを1枚以上</span><strong id="simpleB">—</strong></div>
-          <div><span>Cを1枚以上</span><strong id="simpleC">—</strong></div>
-          <div><span id="simpleAnyLabel">A/B/Cいずれか1枚以上</span><strong id="simpleAny">—</strong></div>
-        </div>
-      </section>
-
 
       <section class="card effect-picker">
         <div class="section-head">
@@ -48,37 +41,38 @@
             <p class="eyebrow">Card Effects</p>
             <h2>カード効果を追加</h2>
           </div>
-          <p>左からタップすると、その順番でシナリオに追加されます。</p>
+          <p>画像をタップすると、下のシナリオに追加されます。</p>
         </div>
         <div id="effectRail" class="effect-rail"></div>
       </section>
 
       <section class="scenario-head">
         <div>
-          <p class="eyebrow">Conditional Scenario</p>
-          <h2>条件付きシナリオ</h2>
+          <p class="eyebrow">Scenario</p>
+          <h2>シナリオ</h2>
         </div>
         <div class="scenario-actions">
-          <button id="clearSteps" class="sub-button">クリア</button>
-          <button id="addStep" class="add-button">＋ 手入力</button>
+          <button id="addStep" class="add-button">＋ カスタム</button>
+          <button id="clearSteps" class="add-button subtle">クリア</button>
         </div>
       </section>
 
       <div id="steps"></div>
 
-      <section class="card sticky-result">
-        <h2>計算結果</h2>
-        <div class="total-prob">
-          <span>全ステップを順番に満たす確率</span>
-          <strong id="totalProb">—</strong>
+      <section class="card result-card bottom-result">
+        <div>
+          <p class="eyebrow">Result</p>
+          <h2>計算結果</h2>
         </div>
+        <strong id="totalProb">—</strong>
+        <p id="resultSummary">カード効果を追加してください。</p>
         <div id="timeline" class="timeline"></div>
       </section>
 
       <footer>
-        <p>例：「3枚引いてAを引いた後、リーリエの決心でBまたはCを探す」場合は、STEP1をA、STEP2をリーリエのプリセット＋B/CのOR条件にしてください。</p>
+        <p>※ 簡易計算です。各ステップの「山に残っている枚数」は、その効果を使う時点での想定枚数として入力してください。</p>
       </footer>
     </main>
-    <script type="module" src="./assets/app.js"></script>
+    <script src="./assets/app.js"></script>
   </body>
 </html>

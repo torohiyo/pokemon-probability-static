@@ -1,82 +1,71 @@
-const GROUPS = ['A', 'B', 'C'];
-
-// 画像URLはここを差し替えればOKです。空欄の場合はテキストカードで表示します。
 const EFFECTS = {
   professor: {
-    label: '博士の研究',
-    short: '博士',
-    mode: 'discard',
-    draw: 7,
-    hand: 0,
+    label: '博士の研究', short: '博士', mode: 'discard', draw: 7, compress: 0,
     description: '手札をトラッシュして7枚引く',
-    imageUrl: '',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/S8b/041094_T_HAKASENOKENKIXYUUARARAGI.jpg',
   },
-  lillie: {
-    label: 'リーリエの決心',
-    short: 'リーリエ',
-    mode: 'shuffle',
-    draw: 6,
-    hand: 5,
+  lillie_strong: {
+    label: 'リーリエの決心強', short: 'リーリエ強', mode: 'shuffle', draw: 8, compress: 0,
+    description: '手札を山札に戻し8枚引く',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M1L/048448_T_RIRIENOKESSHIN.jpg',
+  },
+  lillie_weak: {
+    label: 'リーリエの決心弱', short: 'リーリエ弱', mode: 'shuffle', draw: 6, compress: 0,
     description: '手札を山札に戻し6枚引く',
-    imageUrl: '',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M2a/048697_T_RIRIENOKESSHIN.jpg',
   },
   redcard: {
-    label: 'スペシャルレッドカード',
-    short: 'レッドカード',
-    mode: 'bottom',
-    draw: 3,
-    hand: 5,
+    label: 'スペシャルレッドカード', short: 'レッドカード', mode: 'bottom', draw: 3, compress: 0,
     description: '手札を山札の下に戻し3枚引く',
-    imageUrl: '',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M4/050156_T_SUPESHIXYARUREDDOKADO.jpg',
   },
   sakateni: {
-    label: 'さかてにとる',
-    short: 'さかてに',
-    mode: 'draw',
-    draw: 3,
-    hand: 0,
+    label: 'さかてにとる', short: 'さかてに', mode: 'draw', draw: 3, compress: 0,
     description: '山札を3枚引く',
-    imageUrl: '',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/SV6a/046066_P_KICHIKIGISUEX.jpg',
   },
   dash: {
-    label: 'お使いダッシュ',
-    short: 'ダッシュ',
-    mode: 'draw',
-    draw: 2,
-    hand: 0,
+    label: 'お使いダッシュ', short: 'ダッシュ', mode: 'draw', draw: 2, compress: 0,
     description: '山札を2枚引く',
-    imageUrl: '',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M1S/047847_P_MGARURAEX.jpg',
   },
   midori: {
-    label: 'みどりのまい',
-    short: 'みどり',
-    mode: 'draw',
-    draw: 1,
-    hand: 0,
+    label: 'みどりのまい', short: 'みどり', mode: 'draw', draw: 1, compress: 0,
     description: '山札を1枚引く',
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/MC/048798_P_OGAPONMIDORINOMENEX.jpg',
+  },
+  compress: {
+    label: '山札圧縮', short: '圧縮', mode: 'compress', draw: 0, compress: 1,
+    description: '山札の枚数をn枚減らす',
+    imageUrl: '',
   },
 };
 
 const PRESETS = {
-  custom: { label: 'カスタム', mode: 'draw', draw: 3, hand: 0, description: '自由入力' },
+  custom: { label: 'カスタム', short: '自由', mode: 'draw', draw: 1, compress: 0, description: '自由入力', imageUrl: '' },
   ...EFFECTS,
 };
 
-let steps = [
-  makeStep(1, { effect: 'sakateni', preset: 'sakateni', mode: 'draw', draw: 3, condition: { type: 'any', groups: ['A'], min: 1 } }),
-  makeStep(2, { effect: 'lillie', preset: 'lillie', mode: 'shuffle', hand: 5, draw: 6, condition: { type: 'any', groups: ['B', 'C'], min: 1 } }),
-];
+let steps = [];
+
+function defaultTargets() {
+  return [
+    { name: '引きたいカード1', copies: 1 },
+    { name: '引きたいカード2', copies: 0 },
+    { name: '引きたいカード3', copies: 0 },
+  ];
+}
 
 function makeStep(id, overrides = {}) {
   return {
     id,
-    effect: 'custom',
     preset: 'custom',
-    mode: 'draw', // draw / discard / shuffle / bottom
-    draw: 3,
-    hand: 0,
-    condition: { type: 'any', groups: ['A'], min: 1 },
+    mode: 'draw', // draw / discard / shuffle / bottom / compress
+    draw: 1,
+    compress: 0,
+    condition: 'any', // any / all / atLeast
+    min: 1,
+    targets: defaultTargets(),
     ...overrides,
   };
 }
@@ -84,11 +73,10 @@ function makeStep(id, overrides = {}) {
 function applyEffectToStep(step, key) {
   const effect = PRESETS[key];
   if (!effect) return;
-  step.effect = key;
   step.preset = key;
   step.mode = effect.mode;
   step.draw = effect.draw;
-  step.hand = effect.hand;
+  step.compress = effect.compress || 0;
 }
 
 function addEffectStep(key) {
@@ -119,21 +107,19 @@ function normalizeNumberInput(input) {
   const min = Number(input.min || 0);
   const max = Number(input.max || 999);
   const n = Number(raw);
-  if (!Number.isFinite(n)) {
-    input.value = '';
-    return;
-  }
+  if (!Number.isFinite(n)) { input.value = ''; return; }
   input.value = Math.max(min, Math.min(max, Math.floor(n)));
 }
 
 function formatPct(p) {
   if (!Number.isFinite(p)) return '—';
-  if (p === 0) return '0%';
-  if (p === 1) return '100%';
+  if (p <= 0) return '0%';
+  if (p >= 1) return '100%';
   return `${(p * 100).toFixed(p < 0.001 ? 4 : 2)}%`;
 }
 
 function comb(n, k) {
+  n = Math.floor(n); k = Math.floor(k);
   if (k < 0 || k > n) return 0;
   k = Math.min(k, n - k);
   let result = 1;
@@ -141,265 +127,191 @@ function comb(n, k) {
   return result;
 }
 
-function hyperAtLeastOne(deck, targets, draw) {
-  if (deck <= 0 || draw <= 0 || targets <= 0) return 0;
-  draw = Math.min(draw, deck);
-  const total = comb(deck, draw);
-  if (total === 0) return 0;
-  return 1 - comb(deck - targets, draw) / total;
+function activeTargets(step) {
+  return step.targets
+    .map((t, i) => ({ name: String(t.name || `カード${i + 1}`).trim() || `カード${i + 1}`, copies: safeNum(t.copies, 0, 60) }))
+    .filter((t) => t.copies > 0);
 }
 
-function stateKey(state) { return `${state.deck}|${state.A}|${state.B}|${state.C}`; }
-function validState(state) { return state.deck >= 0 && state.A >= 0 && state.B >= 0 && state.C >= 0 && state.A + state.B + state.C <= state.deck; }
-
-function normalizeDist(dist) {
-  const sum = [...dist.values()].reduce((acc, item) => acc + item.prob, 0);
-  if (sum <= 0) return new Map();
-  const next = new Map();
-  for (const item of dist.values()) next.set(stateKey(item.state), { state: item.state, prob: item.prob / sum });
-  return next;
-}
-
-function enumerateDrawOutcomes(state, draw) {
-  const n = Math.min(draw, state.deck);
-  const other = state.deck - state.A - state.B - state.C;
-  const total = comb(state.deck, n);
+function enumerateTargetDraws(deck, draw, targets) {
+  const n = Math.min(draw, deck);
+  const targetTotal = targets.reduce((s, t) => s + t.copies, 0);
+  const other = deck - targetTotal;
+  const total = comb(deck, n);
   const outcomes = [];
-  if (total <= 0) return outcomes;
-  for (let a = 0; a <= Math.min(state.A, n); a++) {
-    for (let b = 0; b <= Math.min(state.B, n - a); b++) {
-      for (let c = 0; c <= Math.min(state.C, n - a - b); c++) {
-        const o = n - a - b - c;
-        if (o < 0 || o > other) continue;
-        const ways = comb(state.A, a) * comb(state.B, b) * comb(state.C, c) * comb(other, o);
-        if (ways <= 0) continue;
-        outcomes.push({
-          drawn: { A: a, B: b, C: c },
-          prob: ways / total,
-          nextState: { deck: state.deck - n, A: state.A - a, B: state.B - b, C: state.C - c },
-        });
-      }
+  if (total <= 0 || other < 0) return outcomes;
+
+  function walk(index, used, counts, ways) {
+    if (index === targets.length) {
+      const o = n - used;
+      if (o < 0 || o > other) return;
+      outcomes.push({ counts, totalHit: used, prob: (ways * comb(other, o)) / total });
+      return;
+    }
+    const max = Math.min(targets[index].copies, n - used);
+    for (let x = 0; x <= max; x++) {
+      walk(index + 1, used + x, [...counts, x], ways * comb(targets[index].copies, x));
     }
   }
+  walk(0, 0, [], 1);
   return outcomes;
 }
 
-function matchesCondition(drawn, condition) {
-  if (condition.type === 'none') return true;
-  if (condition.type === 'any') return condition.groups.some((g) => drawn[g] >= 1);
-  if (condition.type === 'all') return condition.groups.every((g) => drawn[g] >= 1);
-  if (condition.type === 'atLeast') return condition.groups.reduce((sum, g) => sum + drawn[g], 0) >= condition.min;
-  return true;
-}
+function stepProbability(deck, draw, step) {
+  if (step.mode === 'compress') return 1;
+  const targets = activeTargets(step);
+  if (targets.length === 0) return 1;
+  const targetTotal = targets.reduce((s, t) => s + t.copies, 0);
+  if (deck <= 0 || draw <= 0 || targetTotal <= 0 || targetTotal > deck) return 0;
 
-function prepareStateForStep(state, step) {
-  const hand = safeNum(step.hand, 0, 60);
-  if (step.mode === 'shuffle') {
-    return { ...state, deck: state.deck + hand };
+  let p = 0;
+  for (const out of enumerateTargetDraws(deck, draw, targets)) {
+    let ok = false;
+    if (step.condition === 'any') ok = out.counts.some((x) => x >= 1);
+    if (step.condition === 'all') ok = out.counts.every((x) => x >= 1);
+    if (step.condition === 'atLeast') ok = out.totalHit >= safeNum(step.min, 1, 8);
+    if (ok) p += out.prob;
   }
-  return state;
-}
-
-function finishStateAfterStep(nextState, step) {
-  const hand = safeNum(step.hand, 0, 60);
-  if (step.mode === 'bottom') {
-    return { ...nextState, deck: nextState.deck + hand };
-  }
-  return nextState;
-}
-
-function prepareDist(dist, step) {
-  const next = new Map();
-  for (const item of dist.values()) {
-    const state = prepareStateForStep(item.state, step);
-    if (!validState(state)) continue;
-    const key = stateKey(state);
-    const current = next.get(key);
-    next.set(key, { state, prob: (current?.prob || 0) + item.prob });
-  }
-  return next;
-}
-
-function applyStep(dist, step) {
-  const before = prepareDist(dist, step);
-  const weighted = new Map();
-  let pass = 0;
-  let all = 0;
-  for (const item of before.values()) {
-    for (const outcome of enumerateDrawOutcomes(item.state, safeNum(step.draw, 0, 60))) {
-      const p = item.prob * outcome.prob;
-      all += p;
-      if (!matchesCondition(outcome.drawn, step.condition)) continue;
-      pass += p;
-      const finalState = finishStateAfterStep(outcome.nextState, step);
-      const key = stateKey(finalState);
-      const current = weighted.get(key);
-      weighted.set(key, { state: finalState, prob: (current?.prob || 0) + p });
-    }
-  }
-  return { probability: all > 0 ? pass / all : 0, next: normalizeDist(weighted) };
-}
-
-function summarizeDist(dist) {
-  const sums = { deck: 0, A: 0, B: 0, C: 0 };
-  for (const item of dist.values()) {
-    sums.deck += item.state.deck * item.prob;
-    for (const g of GROUPS) sums[g] += item.state[g] * item.prob;
-  }
-  return sums;
+  return p;
 }
 
 function getInitial() {
-  return {
-    deck: num('deck', 1, 60),
-    A: num('copyA', 0, 60),
-    B: num('copyB', 0, 60),
-    C: num('copyC', 0, 60),
-  };
-}
-
-function modeLabel(mode) {
-  return {
-    draw: '山札を引く',
-    discard: '手札をトラッシュして引く',
-    shuffle: '手札を山札に戻して引く',
-    bottom: '手札を山札の下に戻して引く',
-  }[mode] || '山札を引く';
-}
-
-function modeHelp(mode) {
-  return {
-    draw: '現在の山札からそのまま引きます。さかてにとる・お使いダッシュ・みどりのまい等。',
-    discard: '博士の研究など。手札はトラッシュされるため、山札枚数は増えません。',
-    shuffle: 'リーリエの決心など。手札を山札に戻して混ぜた後に引きます。山札枚数は「現在の山札＋手札枚数」になります。',
-    bottom: 'スペシャルレッドカードなど。手札を山札の下に戻します。このステップでは戻したカードを引かない扱いです。',
-  }[mode] || '';
-}
-
-function conditionLabel(condition) {
-  if (condition.type === 'none') return '条件なし';
-  const joined = condition.groups.join('/');
-  if (condition.type === 'any') return `${joined} のどれかを1枚以上`;
-  if (condition.type === 'all') return `${joined} をすべて1枚以上`;
-  return `${joined} の合計${condition.min}枚以上`;
+  return { deck: num('deck', 1, 60), hand: num('hand', 0, 20) };
 }
 
 function effectLabel(step) {
-  const effect = PRESETS[step.preset] || PRESETS.custom;
-  return effect.label || 'カスタム';
+  return (PRESETS[step.preset] || PRESETS.custom).label;
+}
+
+function modeHelp(step) {
+  const draw = safeNum(step.draw, 0, 60);
+  const compress = safeNum(step.compress, 0, 60);
+  return {
+    draw: `現在の山札から${draw}枚引きます。`,
+    discard: `現在の手札をトラッシュして、山札から${draw}枚引きます。`,
+    shuffle: `現在の手札を山札に戻してから、山札を${draw}枚引きます。`,
+    bottom: `現在の手札を山札の下に戻してから、山札を${draw}枚引きます。戻した手札はこのドローでは引かない扱いです。`,
+    compress: `山札を${compress}枚圧縮します。確率判定は行わず、以降の山札枚数だけ減らします。`,
+  }[step.mode] || '';
+}
+
+function conditionLabel(step) {
+  if (step.mode === 'compress') return '山札枚数を減らす';
+  const targets = activeTargets(step);
+  if (targets.length === 0) return '条件なし';
+  const names = targets.map((t) => `${t.name}${t.copies}枚`).join(' / ');
+  if (step.condition === 'any') return `${names} のどれかを1枚以上`;
+  if (step.condition === 'all') return `${names} をすべて1枚以上`;
+  return `${names} の合計${safeNum(step.min, 1, 8)}枚以上`;
 }
 
 function renderEffectRail() {
   const rail = document.getElementById('effectRail');
-  if (!rail) return;
   rail.innerHTML = Object.entries(EFFECTS).map(([key, effect]) => `
-    <button class="effect-card" data-effect="${key}" aria-label="${effect.label}をステップに追加">
+    <button class="effect-card" data-effect="${key}" aria-label="${effect.label}を追加">
       <div class="effect-art">
-        ${effect.imageUrl ? `<img src="${effect.imageUrl}" alt="${effect.label}" loading="lazy" />` : `<div class="effect-fallback"><b>${effect.short}</b><span>${effect.draw}枚</span></div>`}
+        ${effect.imageUrl ? `<img src="${effect.imageUrl}" alt="${effect.label}" loading="lazy" />` : `<div class="effect-fallback"><b>${effect.short}</b><span>${effect.description}</span></div>`}
       </div>
-      <div class="effect-meta">
-        <strong>${effect.label}</strong>
-        <span>${effect.description}</span>
-      </div>
+      <div class="effect-meta"><strong>${effect.label}</strong><span>${effect.description}</span></div>
     </button>
   `).join('');
+  rail.querySelectorAll('[data-effect]').forEach((button) => button.addEventListener('click', () => addEffectStep(button.dataset.effect)));
+}
 
-  rail.querySelectorAll('button[data-effect]').forEach((button) => {
-    button.addEventListener('click', () => addEffectStep(button.dataset.effect));
-  });
+function imageFor(step) {
+  return (PRESETS[step.preset] || PRESETS.custom).imageUrl || '';
 }
 
 function renderSteps() {
   const wrap = document.getElementById('steps');
   wrap.innerHTML = '';
+  if (steps.length === 0) {
+    wrap.innerHTML = '<section class="card"><p>上のカード画像をタップして、計算したい順番で効果を追加してください。</p></section>';
+    return;
+  }
+
   steps.forEach((step, index) => {
-    const currentEffect = PRESETS[step.preset] || PRESETS.custom;
+    const preset = PRESETS[step.preset] || PRESETS.custom;
+    const img = imageFor(step);
     const el = document.createElement('section');
     el.className = 'card step-card';
     el.innerHTML = `
       <div class="step-head">
-        <div><p class="eyebrow">STEP ${index + 1}</p><h3>${effectLabel(step)}</h3><p>${currentEffect.description || modeLabel(step.mode)}</p></div>
-        <button class="delete-button" data-action="delete" ${steps.length <= 1 ? 'disabled' : ''}>×</button>
+        <div><p class="eyebrow">STEP ${index + 1}</p><h3>${effectLabel(step)}</h3><p>${modeHelp(step)}</p></div>
+        <button class="delete-button" data-action="delete">×</button>
       </div>
-
-      <label class="field preset-field">
-        <span>カード効果</span>
-        <select data-action="preset">
-          ${Object.entries(PRESETS).map(([key, preset]) => `<option value="${key}" ${step.preset === key ? 'selected' : ''}>${preset.label}</option>`).join('')}
-        </select>
-      </label>
-
-      <div class="mode-tabs mode-tabs-four">
-        <button class="mode-button ${step.mode === 'draw' ? 'active' : ''}" data-action="mode" data-mode="draw">山札を引く</button>
-        <button class="mode-button ${step.mode === 'discard' ? 'active' : ''}" data-action="mode" data-mode="discard">トラッシュ</button>
-        <button class="mode-button ${step.mode === 'shuffle' ? 'active' : ''}" data-action="mode" data-mode="shuffle">山に戻す</button>
-        <button class="mode-button ${step.mode === 'bottom' ? 'active' : ''}" data-action="mode" data-mode="bottom">下に戻す</button>
-      </div>
-
-      <div class="effect-box">
-        <p>${modeHelp(step.mode)}</p>
-        <div class="grid two">
-          ${step.mode === 'draw' ? '' : numberMarkup('最初の手札枚数', 'hand', step.hand, 0, 60)}
-          ${numberMarkup('このステップで引く枚数', 'draw', step.draw, 0, 30)}
+      <div class="step-main">
+        <div class="step-thumb">${img ? `<img src="${img}" alt="${preset.label}" loading="lazy" />` : `<span>${preset.short || '自由'}</span>`}</div>
+        <div class="step-controls">
+          <label class="field">
+            <span>カード効果</span>
+            <select data-action="preset">
+              ${Object.entries(PRESETS).map(([key, p]) => `<option value="${key}" ${step.preset === key ? 'selected' : ''}>${p.label}</option>`).join('')}
+            </select>
+          </label>
+          <div class="effect-box">
+            <div class="grid two">
+              ${step.mode === 'compress' ? numberMarkup('圧縮する枚数', 'compress', step.compress, 0, 30) : numberMarkup('この効果で引く枚数', 'draw', step.draw, 0, 30)}
+            </div>
+            <p>${modeHelp(step)}</p>
+          </div>
         </div>
       </div>
-
-      <div class="condition-card">
-        <div class="condition-tabs">
-          ${conditionButton(step, 'none', '条件なし')}
-          ${conditionButton(step, 'any', 'どれか1種')}
-          ${conditionButton(step, 'all', 'すべて')}
-          ${conditionButton(step, 'atLeast', '合計n枚以上')}
-        </div>
-        <div class="chips" style="display:${step.condition.type === 'none' ? 'none' : 'flex'}">
-          ${GROUPS.map((g) => `<button class="chip ${step.condition.groups.includes(g) ? 'selected' : ''}" data-action="toggleGroup" data-group="${g}">${g}</button>`).join('')}
-        </div>
-        <div style="display:${step.condition.type === 'atLeast' ? 'block' : 'none'}">
-          ${numberMarkup('合計何枚以上', 'min', step.condition.min, 1, 12)}
-        </div>
-        <p>${conditionLabel(step.condition)}</p>
-      </div>
+      ${step.mode === 'compress' ? '' : `
+        <details class="details" open>
+          <summary>引きたいカード・条件の詳細設定</summary>
+          <div class="details-body">
+            <div class="target-list">
+              ${step.targets.map((target, i) => targetRowMarkup(target, i)).join('')}
+            </div>
+            <div class="condition-box">
+              <div class="condition-tabs">
+                ${conditionButton(step, 'any', 'どれか1種')}
+                ${conditionButton(step, 'all', 'すべて')}
+                ${conditionButton(step, 'atLeast', '合計n枚以上')}
+              </div>
+              <div class="min-grid" style="display:${step.condition === 'atLeast' ? 'grid' : 'none'}">
+                ${[1,2,3,4,5,6,7,8].map((n) => `<button class="min-button ${safeNum(step.min,1,8) === n ? 'active' : ''}" data-action="min" data-min="${n}">${n}</button>`).join('')}
+              </div>
+              <p>${conditionLabel(step)}</p>
+            </div>
+          </div>
+        </details>`}
+      <div class="step-prob"><span>このステップの成功率</span><strong id="stepProb-${step.id}">—</strong></div>
     `;
 
     el.querySelectorAll('input').forEach((input) => {
       input.addEventListener('input', () => {
         const key = input.dataset.key;
-        if (key === 'min') step.condition.min = safeNum(input.value, 1, 12);
-        else step[key] = safeNum(input.value, Number(input.min || 0), Number(input.max || 60));
-        step.preset = 'custom';
-        step.effect = 'custom';
+        const targetIndex = input.dataset.targetIndex;
+        if (targetIndex !== undefined) {
+          const t = step.targets[Number(targetIndex)];
+          if (key === 'targetName') t.name = input.value;
+          if (key === 'targetCopies') t.copies = safeNum(input.value, 0, 60);
+        } else {
+          step[key] = safeNum(input.value, Number(input.min || 0), Number(input.max || 60));
+          step.preset = step.preset === 'custom' ? 'custom' : step.preset;
+        }
         calculate();
       });
-      input.addEventListener('blur', () => normalizeNumberInput(input));
+      input.addEventListener('blur', () => { if (input.type === 'number') normalizeNumberInput(input); });
     });
 
     el.querySelectorAll('select').forEach((select) => {
-      select.addEventListener('change', () => {
-        applyEffectToStep(step, select.value);
-        renderSteps();
-        calculate();
-      });
+      select.addEventListener('change', () => { applyEffectToStep(step, select.value); renderSteps(); calculate(); });
     });
 
     el.querySelectorAll('button').forEach((button) => {
       button.addEventListener('click', () => {
         const action = button.dataset.action;
         if (action === 'delete') steps = steps.filter((s) => s.id !== step.id);
-        if (action === 'mode') {
-          step.mode = button.dataset.mode;
-          step.preset = 'custom';
-          step.effect = 'custom';
-        }
-        if (action === 'condition') step.condition.type = button.dataset.type;
-        if (action === 'toggleGroup') {
-          const g = button.dataset.group;
-          const groups = step.condition.groups.includes(g) ? step.condition.groups.filter((x) => x !== g) : [...step.condition.groups, g];
-          step.condition.groups = groups.length ? groups : [g];
-        }
+        if (action === 'condition') step.condition = button.dataset.condition;
+        if (action === 'min') { step.condition = 'atLeast'; step.min = safeNum(button.dataset.min, 1, 8); }
         renderSteps();
         calculate();
       });
     });
+
     wrap.appendChild(el);
   });
 }
@@ -408,44 +320,94 @@ function numberMarkup(label, key, value, min = 0, max = 60) {
   return `<label class="field"><span>${label}</span><input data-key="${key}" type="number" inputmode="numeric" min="${min}" max="${max}" value="${value}" /></label>`;
 }
 
-function conditionButton(step, type, label) {
-  return `<button class="condition-button ${step.condition.type === type ? 'active' : ''}" data-action="condition" data-type="${type}">${label}</button>`;
+function targetRowMarkup(target, index) {
+  return `<div class="target-row">
+    <label class="field"><span>カード名</span><input data-key="targetName" data-target-index="${index}" type="text" value="${escapeHtml(target.name)}" placeholder="例：さかてにとる" /></label>
+    <label class="field"><span>山に残る枚数</span><input data-key="targetCopies" data-target-index="${index}" type="number" inputmode="numeric" min="0" max="60" value="${target.copies}" /></label>
+  </div>`;
+}
+
+function conditionButton(step, condition, label) {
+  return `<button class="pill-button ${step.condition === condition ? 'active' : ''}" data-action="condition" data-condition="${condition}">${label}</button>`;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 }
 
 function calculate() {
-  const initial = getInitial();
-  const simpleDraw = num('simpleDraw', 1, 30);
-  document.getElementById('simpleA').textContent = formatPct(hyperAtLeastOne(initial.deck, initial.A, simpleDraw));
-  document.getElementById('simpleB').textContent = formatPct(hyperAtLeastOne(initial.deck, initial.B, simpleDraw));
-  document.getElementById('simpleC').textContent = formatPct(hyperAtLeastOne(initial.deck, initial.C, simpleDraw));
-  document.getElementById('simpleAny').textContent = formatPct(hyperAtLeastOne(initial.deck, initial.A + initial.B + initial.C, simpleDraw));
-  document.getElementById('simpleAnyLabel').textContent = `A/B/Cいずれか1枚以上（対象合計${initial.A + initial.B + initial.C}枚）`;
+  let { deck, hand } = getInitial();
+  let total = 1;
+  const rows = [];
 
-  if (!validState(initial)) {
-    document.getElementById('totalProb').textContent = '対象枚数が山札枚数を超えています';
-    document.getElementById('timeline').innerHTML = '';
+  if (steps.length === 0) {
+    setResult('—', 'カード効果を追加してください。', '');
     return;
   }
 
-  let dist = new Map([[stateKey(initial), { state: initial, prob: 1 }]]);
-  let total = 1;
-  const rows = [];
   for (const step of steps) {
-    const result = applyStep(dist, step);
-    total *= result.probability;
-    const after = summarizeDist(result.next);
-    rows.push({ step, probability: result.probability, after, states: result.next.size });
-    dist = result.next;
-    if (dist.size === 0) break;
+    const beforeDeck = deck;
+    const beforeHand = hand;
+    let drawDeck = deck;
+    let draw = safeNum(step.draw, 0, 30);
+    let prob = 1;
+
+    if (step.mode === 'shuffle') drawDeck = deck + hand;
+    if (step.mode === 'bottom') drawDeck = deck;
+    if (step.mode === 'discard') drawDeck = deck;
+    if (step.mode === 'draw') drawDeck = deck;
+
+    if (step.mode === 'compress') {
+      const c = Math.min(safeNum(step.compress, 0, 30), deck);
+      deck -= c;
+      prob = 1;
+      hand = hand;
+    } else {
+      draw = Math.min(draw, drawDeck);
+      prob = stepProbability(drawDeck, draw, step);
+      total *= prob;
+
+      if (step.mode === 'shuffle') {
+        deck = Math.max(0, deck + beforeHand - draw);
+        hand = draw;
+      } else if (step.mode === 'bottom') {
+        deck = Math.max(0, deck - draw + beforeHand);
+        hand = draw;
+      } else if (step.mode === 'discard') {
+        deck = Math.max(0, deck - draw);
+        hand = draw;
+      } else {
+        deck = Math.max(0, deck - draw);
+        hand = beforeHand + draw;
+      }
+    }
+
+    rows.push({ step, beforeDeck, beforeHand, drawDeck, draw, prob, afterDeck: deck, afterHand: hand });
   }
 
-  document.getElementById('totalProb').textContent = formatPct(total);
-  document.getElementById('timeline').innerHTML = rows.map((row, i) => `
+  setResult(formatPct(total), `${steps.length}ステップをすべて成功した場合の合計確率です。想定終了状態：山札${deck}枚 / 手札${hand}枚`, rows);
+}
+
+function setResult(percent, summary, rows) {
+  document.getElementById('totalProb').textContent = percent;
+  document.getElementById('totalProbTop').textContent = percent;
+  document.getElementById('resultSummary').textContent = summary;
+  document.getElementById('resultSummaryTop').textContent = summary;
+
+  const timeline = document.getElementById('timeline');
+  if (!Array.isArray(rows)) { timeline.innerHTML = ''; return; }
+
+  rows.forEach((row) => {
+    const el = document.getElementById(`stepProb-${row.step.id}`);
+    if (el) el.textContent = formatPct(row.prob);
+  });
+
+  timeline.innerHTML = rows.map((row, i) => `
     <div class="timeline-row">
       <div class="badge">${i + 1}</div>
       <div>
-        <b>${formatPct(row.probability)}</b>
-        <p>${effectLabel(row.step)} / ${conditionLabel(row.step.condition)} / 平均残山札 ${row.after.deck.toFixed(2)}枚 / 状態数 ${row.states}</p>
+        <b>${formatPct(row.prob)}</b>
+        <p>${effectLabel(row.step)} / ${conditionLabel(row.step)} / 判定山札 ${row.drawDeck}枚 → 終了後 山札${row.afterDeck}枚・手札${row.afterHand}枚</p>
       </div>
     </div>
   `).join('');
@@ -457,7 +419,7 @@ function renderAll() {
   calculate();
 }
 
-['deck', 'simpleDraw', 'copyA', 'copyB', 'copyC'].forEach((id) => {
+['deck', 'hand'].forEach((id) => {
   const input = document.getElementById(id);
   input.addEventListener('input', calculate);
   input.addEventListener('blur', () => normalizeNumberInput(input));
@@ -470,7 +432,7 @@ document.getElementById('addStep').addEventListener('click', () => {
 });
 
 document.getElementById('clearSteps').addEventListener('click', () => {
-  steps = [makeStep(Date.now())];
+  steps = [];
   renderSteps();
   calculate();
 });
