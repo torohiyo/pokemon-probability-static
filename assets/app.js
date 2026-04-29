@@ -1,8 +1,4 @@
 const EFFECTS = {
-  professor: {
-    label: '博士の研究', short: '博士', mode: 'discard', draw: 7, compress: 0,
-    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/S8b/041094_T_HAKASENOKENKIXYUUARARAGI.jpg',
-  },
   lillie_strong: {
     label: 'リーリエの決心強', short: 'リ強', mode: 'shuffle', draw: 8, compress: 0,
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M1L/048448_T_RIRIENOKESSHIN.jpg',
@@ -14,6 +10,14 @@ const EFFECTS = {
   redcard: {
     label: 'スペシャルレッドカード', short: '赤', mode: 'bottom', draw: 3, compress: 0,
     imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/M4/050156_T_SUPESHIXYARUREDDOKADO.jpg',
+  },
+  unfair5: {
+    label: "アンフェアスタンプ", short: "不5", mode: "shuffle", draw: 5, compress: 0,
+    imageUrl: "https://www.pokemon-card.com/assets/images/card_images/large/MC/049349_T_ANFUEASUTANPU.jpg",
+  },
+  unfair2: {
+    label: "アンフェアスタンプ2", short: "不2", mode: "shuffle", draw: 2, compress: 0,
+    imageUrl: "https://www.pokemon-card.com/assets/images/card_images/large/MC/049349_T_ANFUEASUTANPU.jpg",
   },
   sakateni: {
     label: 'さかてにとる', short: '逆', mode: 'draw', draw: 3, compress: 0,
