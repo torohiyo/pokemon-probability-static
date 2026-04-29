@@ -14,7 +14,7 @@
         <div>
           <p class="eyebrow">Pokémon Card Probability</p>
           <h1>山札ドロー確率計算</h1>
-          <p>縦引き、博士の研究、リーリエの決心、スペシャルレッドカード、条件付き確率、OR条件をスマホで確認できます。</p>
+          <p>カード画像をタップして、博士・リーリエ・さかてにとる等を順番に組み合わせて計算できます。</p>
         </div>
       </header>
 
@@ -37,8 +37,20 @@
           <div><span>Aを1枚以上</span><strong id="simpleA">—</strong></div>
           <div><span>Bを1枚以上</span><strong id="simpleB">—</strong></div>
           <div><span>Cを1枚以上</span><strong id="simpleC">—</strong></div>
-          <div><span>A/B/Cいずれか</span><strong id="simpleAny">—</strong></div>
+          <div><span id="simpleAnyLabel">A/B/Cいずれか1枚以上</span><strong id="simpleAny">—</strong></div>
         </div>
+      </section>
+
+
+      <section class="card effect-picker">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Card Effects</p>
+            <h2>カード効果を追加</h2>
+          </div>
+          <p>左からタップすると、その順番でシナリオに追加されます。</p>
+        </div>
+        <div id="effectRail" class="effect-rail"></div>
       </section>
 
       <section class="scenario-head">
@@ -46,7 +58,10 @@
           <p class="eyebrow">Conditional Scenario</p>
           <h2>条件付きシナリオ</h2>
         </div>
-        <button id="addStep" class="add-button">＋ ステップ追加</button>
+        <div class="scenario-actions">
+          <button id="clearSteps" class="sub-button">クリア</button>
+          <button id="addStep" class="add-button">＋ 手入力</button>
+        </div>
       </section>
 
       <div id="steps"></div>

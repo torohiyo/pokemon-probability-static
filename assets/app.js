@@ -1,21 +1,77 @@
 const GROUPS = ['A', 'B', 'C'];
 
+// 画像URLはここを差し替えればOKです。空欄の場合はテキストカードで表示します。
+const EFFECTS = {
+  professor: {
+    label: '博士の研究',
+    short: '博士',
+    mode: 'discard',
+    draw: 7,
+    hand: 0,
+    description: '手札をトラッシュして7枚引く',
+    imageUrl: '',
+  },
+  lillie: {
+    label: 'リーリエの決心',
+    short: 'リーリエ',
+    mode: 'shuffle',
+    draw: 6,
+    hand: 5,
+    description: '手札を山札に戻し6枚引く',
+    imageUrl: '',
+  },
+  redcard: {
+    label: 'スペシャルレッドカード',
+    short: 'レッドカード',
+    mode: 'bottom',
+    draw: 3,
+    hand: 5,
+    description: '手札を山札の下に戻し3枚引く',
+    imageUrl: '',
+  },
+  sakateni: {
+    label: 'さかてにとる',
+    short: 'さかてに',
+    mode: 'draw',
+    draw: 3,
+    hand: 0,
+    description: '山札を3枚引く',
+    imageUrl: '',
+  },
+  dash: {
+    label: 'お使いダッシュ',
+    short: 'ダッシュ',
+    mode: 'draw',
+    draw: 2,
+    hand: 0,
+    description: '山札を2枚引く',
+    imageUrl: '',
+  },
+  midori: {
+    label: 'みどりのまい',
+    short: 'みどり',
+    mode: 'draw',
+    draw: 1,
+    hand: 0,
+    description: '山札を1枚引く',
+    imageUrl: 'https://www.pokemon-card.com/assets/images/card_images/large/MC/048798_P_OGAPONMIDORINOMENEX.jpg',
+  },
+};
+
 const PRESETS = {
-  custom: { label: 'カスタム', mode: 'draw', draw: 3, hand: 0 },
-  professor: { label: '博士の研究', mode: 'discard', draw: 7, hand: 0 },
-  lillieStrong: { label: 'リーリエの決心強', mode: 'shuffle', draw: 8, hand: 5 },
-  lillieWeak: { label: 'リーリエの決心弱', mode: 'shuffle', draw: 6, hand: 5 },
-  redcard: { label: 'スペシャルレッドカード', mode: 'bottom', draw: 3, hand: 5 },
+  custom: { label: 'カスタム', mode: 'draw', draw: 3, hand: 0, description: '自由入力' },
+  ...EFFECTS,
 };
 
 let steps = [
-  makeStep(1, { draw: 3, condition: { type: 'any', groups: ['A'], min: 1 } }),
-  makeStep(2, { preset: 'lillieStrong', mode: 'shuffle', hand: 5, draw: 8, condition: { type: 'any', groups: ['B', 'C'], min: 1 } }),
+  makeStep(1, { effect: 'sakateni', preset: 'sakateni', mode: 'draw', draw: 3, condition: { type: 'any', groups: ['A'], min: 1 } }),
+  makeStep(2, { effect: 'lillie', preset: 'lillie', mode: 'shuffle', hand: 5, draw: 6, condition: { type: 'any', groups: ['B', 'C'], min: 1 } }),
 ];
 
 function makeStep(id, overrides = {}) {
   return {
     id,
+    effect: 'custom',
     preset: 'custom',
     mode: 'draw', // draw / discard / shuffle / bottom
     draw: 3,
@@ -23,6 +79,23 @@ function makeStep(id, overrides = {}) {
     condition: { type: 'any', groups: ['A'], min: 1 },
     ...overrides,
   };
+}
+
+function applyEffectToStep(step, key) {
+  const effect = PRESETS[key];
+  if (!effect) return;
+  step.effect = key;
+  step.preset = key;
+  step.mode = effect.mode;
+  step.draw = effect.draw;
+  step.hand = effect.hand;
+}
+
+function addEffectStep(key) {
+  const step = makeStep(Date.now() + Math.random());
+  applyEffectToStep(step, key);
+  steps.push(step);
+  renderAll();
 }
 
 function num(id, min = 0, max = 999) {
@@ -122,18 +195,14 @@ function matchesCondition(drawn, condition) {
 function prepareStateForStep(state, step) {
   const hand = safeNum(step.hand, 0, 60);
   if (step.mode === 'shuffle') {
-    // 手札を山札に混ぜる。対象枚数は「混ぜた後の山札内に存在する枚数」として扱う。
     return { ...state, deck: state.deck + hand };
   }
-  // discard: 手札はトラッシュしてから引くので山札は増えない。
-  // bottom: 手札は山札下に戻すため、このステップのドロー対象にはならない。
   return state;
 }
 
 function finishStateAfterStep(nextState, step) {
   const hand = safeNum(step.hand, 0, 60);
   if (step.mode === 'bottom') {
-    // 下に戻したカードはこのドローでは引けないが、ドロー後の残山札には加わる。
     return { ...nextState, deck: nextState.deck + hand };
   }
   return nextState;
@@ -191,19 +260,19 @@ function getInitial() {
 
 function modeLabel(mode) {
   return {
-    draw: '縦引き',
+    draw: '山札を引く',
     discard: '手札をトラッシュして引く',
-    shuffle: '手札を山札に混ぜて引く',
+    shuffle: '手札を山札に戻して引く',
     bottom: '手札を山札の下に戻して引く',
-  }[mode] || '縦引き';
+  }[mode] || '山札を引く';
 }
 
 function modeHelp(mode) {
   return {
-    draw: '通常の縦引きです。現在の山札からそのまま引きます。',
+    draw: '現在の山札からそのまま引きます。さかてにとる・お使いダッシュ・みどりのまい等。',
     discard: '博士の研究など。手札はトラッシュされるため、山札枚数は増えません。',
     shuffle: 'リーリエの決心など。手札を山札に戻して混ぜた後に引きます。山札枚数は「現在の山札＋手札枚数」になります。',
-    bottom: 'スペシャルレッドカードなど。手札を山札の下に戻します。このステップで引くカードは元の山札トップ側から引く扱いです。',
+    bottom: 'スペシャルレッドカードなど。手札を山札の下に戻します。このステップでは戻したカードを引かない扱いです。',
   }[mode] || '';
 }
 
@@ -215,29 +284,55 @@ function conditionLabel(condition) {
   return `${joined} の合計${condition.min}枚以上`;
 }
 
+function effectLabel(step) {
+  const effect = PRESETS[step.preset] || PRESETS.custom;
+  return effect.label || 'カスタム';
+}
+
+function renderEffectRail() {
+  const rail = document.getElementById('effectRail');
+  if (!rail) return;
+  rail.innerHTML = Object.entries(EFFECTS).map(([key, effect]) => `
+    <button class="effect-card" data-effect="${key}" aria-label="${effect.label}をステップに追加">
+      <div class="effect-art">
+        ${effect.imageUrl ? `<img src="${effect.imageUrl}" alt="${effect.label}" loading="lazy" />` : `<div class="effect-fallback"><b>${effect.short}</b><span>${effect.draw}枚</span></div>`}
+      </div>
+      <div class="effect-meta">
+        <strong>${effect.label}</strong>
+        <span>${effect.description}</span>
+      </div>
+    </button>
+  `).join('');
+
+  rail.querySelectorAll('button[data-effect]').forEach((button) => {
+    button.addEventListener('click', () => addEffectStep(button.dataset.effect));
+  });
+}
+
 function renderSteps() {
   const wrap = document.getElementById('steps');
   wrap.innerHTML = '';
   steps.forEach((step, index) => {
+    const currentEffect = PRESETS[step.preset] || PRESETS.custom;
     const el = document.createElement('section');
     el.className = 'card step-card';
     el.innerHTML = `
       <div class="step-head">
-        <div><p class="eyebrow">STEP ${index + 1}</p><h3>${modeLabel(step.mode)}</h3></div>
+        <div><p class="eyebrow">STEP ${index + 1}</p><h3>${effectLabel(step)}</h3><p>${currentEffect.description || modeLabel(step.mode)}</p></div>
         <button class="delete-button" data-action="delete" ${steps.length <= 1 ? 'disabled' : ''}>×</button>
       </div>
 
       <label class="field preset-field">
-        <span>カード効果プリセット</span>
+        <span>カード効果</span>
         <select data-action="preset">
           ${Object.entries(PRESETS).map(([key, preset]) => `<option value="${key}" ${step.preset === key ? 'selected' : ''}>${preset.label}</option>`).join('')}
         </select>
       </label>
 
       <div class="mode-tabs mode-tabs-four">
-        <button class="mode-button ${step.mode === 'draw' ? 'active' : ''}" data-action="mode" data-mode="draw">縦引き</button>
+        <button class="mode-button ${step.mode === 'draw' ? 'active' : ''}" data-action="mode" data-mode="draw">山札を引く</button>
         <button class="mode-button ${step.mode === 'discard' ? 'active' : ''}" data-action="mode" data-mode="discard">トラッシュ</button>
-        <button class="mode-button ${step.mode === 'shuffle' ? 'active' : ''}" data-action="mode" data-mode="shuffle">混ぜる</button>
+        <button class="mode-button ${step.mode === 'shuffle' ? 'active' : ''}" data-action="mode" data-mode="shuffle">山に戻す</button>
         <button class="mode-button ${step.mode === 'bottom' ? 'active' : ''}" data-action="mode" data-mode="bottom">下に戻す</button>
       </div>
 
@@ -272,6 +367,7 @@ function renderSteps() {
         if (key === 'min') step.condition.min = safeNum(input.value, 1, 12);
         else step[key] = safeNum(input.value, Number(input.min || 0), Number(input.max || 60));
         step.preset = 'custom';
+        step.effect = 'custom';
         calculate();
       });
       input.addEventListener('blur', () => normalizeNumberInput(input));
@@ -279,11 +375,7 @@ function renderSteps() {
 
     el.querySelectorAll('select').forEach((select) => {
       select.addEventListener('change', () => {
-        const preset = PRESETS[select.value];
-        step.preset = select.value;
-        step.mode = preset.mode;
-        step.draw = preset.draw;
-        step.hand = preset.hand;
+        applyEffectToStep(step, select.value);
         renderSteps();
         calculate();
       });
@@ -296,6 +388,7 @@ function renderSteps() {
         if (action === 'mode') {
           step.mode = button.dataset.mode;
           step.preset = 'custom';
+          step.effect = 'custom';
         }
         if (action === 'condition') step.condition.type = button.dataset.type;
         if (action === 'toggleGroup') {
@@ -326,6 +419,7 @@ function calculate() {
   document.getElementById('simpleB').textContent = formatPct(hyperAtLeastOne(initial.deck, initial.B, simpleDraw));
   document.getElementById('simpleC').textContent = formatPct(hyperAtLeastOne(initial.deck, initial.C, simpleDraw));
   document.getElementById('simpleAny').textContent = formatPct(hyperAtLeastOne(initial.deck, initial.A + initial.B + initial.C, simpleDraw));
+  document.getElementById('simpleAnyLabel').textContent = `A/B/Cいずれか1枚以上（対象合計${initial.A + initial.B + initial.C}枚）`;
 
   if (!validState(initial)) {
     document.getElementById('totalProb').textContent = '対象枚数が山札枚数を超えています';
@@ -351,10 +445,16 @@ function calculate() {
       <div class="badge">${i + 1}</div>
       <div>
         <b>${formatPct(row.probability)}</b>
-        <p>${modeLabel(row.step.mode)} / ${conditionLabel(row.step.condition)} / 平均残山札 ${row.after.deck.toFixed(2)}枚 / 状態数 ${row.states}</p>
+        <p>${effectLabel(row.step)} / ${conditionLabel(row.step.condition)} / 平均残山札 ${row.after.deck.toFixed(2)}枚 / 状態数 ${row.states}</p>
       </div>
     </div>
   `).join('');
+}
+
+function renderAll() {
+  renderEffectRail();
+  renderSteps();
+  calculate();
 }
 
 ['deck', 'simpleDraw', 'copyA', 'copyB', 'copyC'].forEach((id) => {
@@ -369,5 +469,10 @@ document.getElementById('addStep').addEventListener('click', () => {
   calculate();
 });
 
-renderSteps();
-calculate();
+document.getElementById('clearSteps').addEventListener('click', () => {
+  steps = [makeStep(Date.now())];
+  renderSteps();
+  calculate();
+});
+
+renderAll();
